@@ -1,5 +1,11 @@
+import 'dart:developer';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio_connectivity_app/interceptor/dio_connectivity_request_retrier.dart';
+import 'package:dio_smart_retry/dio_smart_retry.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'interceptor/retry_interceptor.dart';
 
 void main() {
   runApp(const MyApp());
@@ -27,6 +33,19 @@ class _UserListScreenState extends State<UserListScreen> {
   List<dynamic> _users = [];
   bool _isLoading = false;
 
+  final Dio _dio = Dio();
+
+  @override
+  void initState() {
+    super.initState();
+    // пакет для добавления интерспектора для повторной отправки запроса при отсуствии интернет соединения ->
+    // _dio.interceptors.add(RetryInterceptor(dio: _dio, logPrint: log));
+    // в реальной работе будет реализовано в get_it классе ->
+    _dio.interceptors.add(RetryOnConnectionChangeInterceptor(
+        requestRetrier: DioConnectivityRequestRetrier(
+            connectivity: Connectivity(), dio: Dio())));
+  }
+
   Future<void> _fetchUsers() async {
     setState(() {
       _isLoading = true;
@@ -34,7 +53,7 @@ class _UserListScreenState extends State<UserListScreen> {
 
     try {
       var response =
-          await Dio().get('https://jsonplaceholder.typicode.com/users');
+          await _dio.get('https://jsonplaceholder.typicode.com/users');
       setState(() {
         _users = response.data;
       });

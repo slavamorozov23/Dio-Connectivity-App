@@ -1,0 +1,93 @@
+# Конспект по работе с Dio и Dio HTTP2 Adapter
+
+## 1. Подключение библиотек
+
+```dart
+import 'package:dio/dio.dart';
+import 'package:dio_http2_adapter/dio_http2_adapter.dart';
+```
+
+## 2. Основная настройка Dio с использованием HTTP/2 адаптера
+
+### Пример настройки и использования Dio:
+
+- Установка базового URL
+- Добавление логгера
+- Настройка адаптера HTTP/2 с управлением соединениями
+
+```dart
+void main() async {
+  final dio = Dio()
+    ..options.baseUrl = 'https://pub.dev'
+    ..interceptors.add(LogInterceptor())
+    ..httpClientAdapter = Http2Adapter(
+      ConnectionManager(idleTimeout: Duration(seconds: 10)),
+    );
+
+  Response<String> response;
+  response = await dio.get('/?xx=6');
+  for (final e in response.redirects) {
+    print('redirect: ${e.statusCode} ${e.location}');
+  }
+  print(response.data);
+}
+```
+
+### Особенности:
+- `baseUrl`: базовый URL для запросов
+- `LogInterceptor()`: логгер для отслеживания запросов и ответов
+- `Http2Adapter`: адаптер для использования HTTP/2
+
+## 3. Игнорирование некорректного сертификата
+
+### Пример настройки для игнорирования некорректного сертификата:
+
+- Использование опции `onBadCertificate`
+
+```dart
+void main() async {
+  final dio = Dio()
+    ..options.baseUrl = 'https://pub.dev'
+    ..interceptors.add(LogInterceptor())
+    ..httpClientAdapter = Http2Adapter(
+      ConnectionManager(
+        idleTimeout: Duration(seconds: 10),
+        onClientCreate: (_, config) => config.onBadCertificate = (_) => true,
+      ),
+    );
+}
+```
+
+### Особенности:
+- `onBadCertificate`: функция, которая позволяет игнорировать некорректные сертификаты, возвращая `true`
+
+## 4. Настройка прокси-сервера
+
+### Пример настройки прокси-сервера:
+
+- Использование опции `proxy`
+
+```dart
+void main() async {
+  final dio = Dio()
+    ..options.baseUrl = 'https://pub.dev'
+    ..interceptors.add(LogInterceptor())
+    ..httpClientAdapter = Http2Adapter(
+      ConnectionManager(
+        idleTimeout: Duration(seconds: 10),
+        onClientCreate: (_, config) =>
+            config.proxy = Uri.parse('http://login:password@192.168.0.1:8888'),
+      ),
+    );
+}
+```
+
+### Особенности:
+- `proxy`: URL прокси-сервера в формате `http://login:password@ip:port`
+
+## Практические аспекты:
+
+1. **Настройка базового URL и логгера**: Устанавливается базовый URL для всех запросов и добавляется логгер для отслеживания запросов и ответов.
+2. **Использование HTTP/2 адаптера**: Настройка адаптера для работы с HTTP/2, включая управление временем ожидания соединения.
+3. **Игнорирование некорректного сертификата**: Возможность игнорирования ошибок сертификатов для упрощения разработки и тестирования.
+4. **Настройка прокси-сервера**: Возможность конфигурирования прокси-сервера для маршрутизации запросов через него.

@@ -1,0 +1,111 @@
+### Конспект по использованию пакета `dio_smart_retry`
+
+#### Практические аспекты:
+
+1. **Добавление перехватчика RetryInterceptor в dio**:
+   ```dart
+   final dio = Dio();
+   dio.interceptors.add(RetryInterceptor(
+     dio: dio,
+     logPrint: print, // Функция логирования (опционально)
+     retries: 3, // Количество попыток (опционально)
+     retryDelays: const [ // Задержки между попытками (опционально)
+       Duration(seconds: 1), // 1 секунда перед первой попыткой
+       Duration(seconds: 2), // 2 секунды перед второй попыткой
+       Duration(seconds: 3), // 3 секунды перед третьей попыткой
+     ],
+   ));
+   ```
+
+2. **Отправка неудачного запроса с тремя попытками**:
+   ```dart
+   await dio.get('https://mock.codes/500');
+   ```
+
+3. **Список статусов по умолчанию, при которых происходит повтор запроса**:
+   - 408: RequestTimeout
+   - 429: TooManyRequests
+   - 500: InternalServerError
+   - 502: BadGateway
+   - 503: ServiceUnavailable
+   - 504: GatewayTimeout
+   - 440: LoginTimeout (IIS)
+   - 460: ClientClosedRequest (AWS Elastic Load Balancer)
+   - 499: ClientClosedRequest (ngnix)
+   - 520: WebServerReturnedUnknownError
+   - 521: WebServerIsDown
+   - 522: ConnectionTimedOut
+   - 523: OriginIsUnreachable
+   - 524: TimeoutOccurred
+   - 525: SSLHandshakeFailed
+   - 527: RailgunError
+   - 598: NetworkReadTimeoutError
+   - 599: NetworkConnectTimeoutError
+
+4. **Отключение повторной отправки для конкретного запроса**:
+   ```dart
+   final request = RequestOptions(path: '/')..disableRetry = true;
+   await dio.fetch<String>(request);
+   // или
+   final options = Options()..disableRetry = true;
+   await dio.get<String>('/', options: options);
+   ```
+
+5. **Добавление дополнительных кодов статусов для повторной отправки**:
+   ```dart
+   RetryInterceptor(
+     dio: dio,
+     retryableExtraStatuses: {401}, // Пример добавления 401 статуса
+   );
+   ```
+
+6. **Переопределение списка статусов для повторной отправки**:
+   ```dart
+   final myStatuses = {400, 409};
+   dio.interceptors.add(
+     RetryInterceptor(
+       dio: dio,
+       logPrint: print,
+       retryEvaluator: DefaultRetryEvaluator(myStatuses).evaluate,
+     ),
+   );
+   await dio.get<dynamic>('https://mock.codes/400');
+   ```
+
+7. **Повторная отправка запросов с multipart/form-data**:
+   Использование класса `MultipartFileRecreatable` вместо `MultipartFile`:
+   ```dart
+   final formData = FormData.fromMap({
+     'file': MultipartFileRecreatable.fromFileSync('README.md')
+   });
+   await dio.post<dynamic>(
+     'https://multipart.free.beeceptor.com/post500',
+     data: formData,
+   );
+   ```
+
+8. **Миграция на версию 6.0**:
+   - Параметр `filename` теперь именованный.
+   - Параметр `filePath` удален.
+   
+   **Пример обновления кода**:
+   Старый код:
+   ```dart
+   return MultipartFileRecreatable(
+     stream,
+     length,
+     filename,
+     filePath,
+   );
+   ```
+   Новый код:
+   ```dart
+   return MultipartFileRecreatable(
+     stream,
+     length,
+     filename: filename,
+   );
+   ```
+
+#### Рекомендации:
+- Всегда указывайте задержки между попытками для более стабильного поведения.

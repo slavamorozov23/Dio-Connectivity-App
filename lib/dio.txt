@@ -1,0 +1,232 @@
+# Конспект по Dio
+
+## Основные аспекты использования Dio
+
+### Создание экземпляра Dio
+
+```dart
+import 'package:dio/dio.dart';
+
+final dio = Dio();
+```
+
+### Конфигурация Dio
+
+```dart
+final options = BaseOptions(
+  baseUrl: 'https://api.pub.dev',
+  connectTimeout: Duration(seconds: 5),
+  receiveTimeout: Duration(seconds: 3),
+);
+final dio = Dio(options);
+```
+
+### Варианты запросов
+
+#### GET запрос
+
+```dart
+void getHttp() async {
+  final response = await dio.get('https://dart.dev');
+  print(response);
+}
+```
+
+#### POST запрос
+
+```dart
+final response = await dio.post('/test', data: {'id': 12, 'name': 'dio'});
+```
+
+### Отправка нескольких запросов параллельно
+
+```dart
+final response = await Future.wait([dio.post('/info'), dio.get('/token')]);
+```
+
+### Загрузка файла
+
+```dart
+final response = await dio.download(
+  'https://pub.dev/',
+  (await getTemporaryDirectory()).path + 'pub.html',
+);
+```
+
+### Отправка FormData
+
+```dart
+final formData = FormData.fromMap({
+  'name': 'dio',
+  'date': DateTime.now().toIso8601String(),
+});
+final response = await dio.post('/info', data: formData);
+```
+
+### Отправка нескольких файлов с FormData
+
+```dart
+final formData = FormData.fromMap({
+  'name': 'dio',
+  'date': DateTime.now().toIso8601String(),
+  'file': await MultipartFile.fromFile('./text.txt', filename: 'upload.txt'),
+  'files': [
+    await MultipartFile.fromFile('./text1.txt', filename: 'text1.txt'),
+    await MultipartFile.fromFile('./text2.txt', filename: 'text2.txt'),
+  ]
+});
+final response = await dio.post('/info', data: formData);
+```
+
+### Прослушивание прогресса загрузки
+
+```dart
+final response = await dio.post(
+  'https://www.dtworkroom.com/doris/1/2.0.0/test',
+  data: {'aa': 'bb' * 22},
+  onSendProgress: (int sent, int total) {
+    print('$sent $total');
+  },
+);
+```
+
+### Отправка бинарных данных с Stream
+
+```dart
+final postData = <int>[0, 1, 2];
+await dio.post(
+  url,
+  data: Stream.fromIterable(postData.map((e) => [e])),
+  options: Options(
+    headers: {
+      Headers.contentLengthHeader: postData.length,
+    },
+  ),
+);
+```
+
+## Интерсепторы
+
+### Пример использования InterceptorsWrapper
+
+```dart
+dio.interceptors.add(
+  InterceptorsWrapper(
+    onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+      return handler.next(options);
+    },
+    onResponse: (Response response, ResponseInterceptorHandler handler) {
+      return handler.next(response);
+    },
+    onError: (DioException error, ErrorInterceptorHandler handler) {
+      return handler.next(error);
+    },
+  ),
+);
+```
+
+### Пример кастомного интерсептора
+
+```dart
+import 'package:dio/dio.dart';
+
+class CustomInterceptors extends Interceptor {
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    print('REQUEST[${options.method}] => PATH: ${options.path}');
+    super.onRequest(options, handler);
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    print('RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}');
+    super.onResponse(response, handler);
+  }
+
+  @override
+  Future onError(DioException err, ErrorInterceptorHandler handler) async {
+    print('ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path}');
+    super.onError(err, handler);
+  }
+}
+```
+
+## Обработка ошибок
+
+### Пример обработки ошибок
+
+```dart
+try {
+  await dio.get('https://api.pub.dev/not-exist');
+} on DioException catch (e) {
+  if (e.response != null) {
+    print(e.response.data);
+    print(e.response.headers);
+    print(e.response.requestOptions);
+  } else {
+    print(e.requestOptions);
+    print(e.message);
+  }
+}
+```
+
+## Отмена запросов
+
+### Пример отмены запроса
+
+```dart
+final cancelToken = CancelToken();
+dio.get(url, cancelToken: cancelToken).catchError((DioException error) {
+  if (CancelToken.isCancel(error)) {
+    print('Request canceled: ${error.message}');
+  } else {
+    // handle error.
+  }
+});
+token.cancel('cancelled');
+```
+
+## Дополнительные функции
+
+### Пример использования proxy
+
+```dart
+import 'package:dio/io.dart';
+
+void initAdapter() {
+  dio.httpClientAdapter = IOHttpClientAdapter(
+    createHttpClient: () {
+      final client = HttpClient();
+      client.findProxy = (uri) {
+        return 'PROXY localhost:8888';
+      };
+      return client;
+    },
+  );
+}
+```
+
+### Пример проверки HTTPS сертификата
+
+```dart
+void initAdapter() {
+  const String fingerprint = 'ee5ce1dfa7a53657c545c62b65802e4272878dabd65c0aadcf85783ebb0b4d5c';
+  dio.httpClientAdapter = IOHttpClientAdapter(
+    createHttpClient: () {
+      final HttpClient client = HttpClient(context: SecurityContext(withTrustedRoots: false));
+      client.badCertificateCallback = (cert, host, port) => true;
+      return client;
+    },
+    validateCertificate: (cert, host, port) {
+      if (cert == null) {
+        return false;
+      }
+      return fingerprint == sha256.convert(cert.der).toString();
+    },
+  );
+}
+```
+
+## Поддержка HTTP/2
+
+Dio поддерживает HTTP/2 через пакет dio_http2_adapter.

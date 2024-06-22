@@ -7,7 +7,9 @@ environment:
   sdk: '>=3.4.3 <4.0.0'
 
 dependencies:
+  connectivity_plus: ^6.0.3
   dio: ^5.4.3+1
+  dio_smart_retry: ^6.0.0
   flutter:
     sdk: flutter
 
